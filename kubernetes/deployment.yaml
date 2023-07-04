@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    prometheus.io/scrape: 'true'
+  labels:
+    app.kubernetes.io/instance: k8s-admin-informer
+    app.kubernetes.io/name: k8s-admin-informer
+    app.kubernetes.io/release-name: k8s-admin-informer
+  name: k8s-admin-informer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      release: k8s-admin-informer
+  template:
+    metadata:
+      labels:
+        release: k8s-admin-informer
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: nodetype.cks.io/arch
+                    operator: In
+                    values:
+                      - amd64
+                  - key: nodetype.cks.io/os
+                    operator: In
+                    values:
+                      - rhel
+      containers:
+        - image: etechtdd/k8s-admin-informer:0.0.1
+          name: k8s-admin-informer
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          resources:
+            limits:
+              cpu: '2'
+              memory: 4Gi
+            requests:
+              cpu: 200m
+              memory: 1Gi
+          volumeMounts:
+            - name: kubeconfig
+              mountPath: /app/kubeconfig/
+      volumes:
+        - name: kubeconfig
+          secret:
+            secretName: kubeconfig

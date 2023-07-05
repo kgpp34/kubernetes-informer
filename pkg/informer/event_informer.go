@@ -2,6 +2,7 @@ package informer
 
 import (
 	"context"
+
 	log "github.com/sirupsen/logrus"
 	coreV1 "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -76,7 +77,6 @@ func (eventInformer *EventInformer) GetPodEvent(ns string, pod string) []*coreV1
 		if eve.InvolvedObject.Kind == "Pod" && eve.InvolvedObject.Name == pod {
 			res = append(res, eve)
 		}
-		res = append(res, eve)
 	}
 
 	return res

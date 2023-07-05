@@ -1,11 +1,13 @@
 package handler
 
 import (
-	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
 	"k8s-admin-informer/pkg/informer"
 	"k8s-admin-informer/pkg/model"
+	"k8s-admin-informer/pkg/util"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
 )
 
 type Handler struct {
@@ -57,10 +59,15 @@ func (h *Handler) getPodAndEvents(ns string, parentName string) []model.Instance
 
 		if len(events) > 0 {
 			for _, event := range events {
+				asiaTime, err := util.ConvertUTCToAsiaShanghai(event.CreationTimestamp.Time)
+				if err != nil {
+					log.Errorf("解析时间出现错误:%v", err)
+					asiaTime = event.CreationTimestamp.Time
+				}
 				instanceEvent := model.InstanceEvent{
 					Message: event.Message,
 					Reason:  event.Reason,
-					Time:    event.CreationTimestamp.Time.String(),
+					Time:    asiaTime.String(),
 				}
 				instEvents = append(instEvents, instanceEvent)
 			}

@@ -6,6 +6,7 @@ import (
 	"k8s-admin-informer/pkg/util"
 	"net/http"
 	"sort"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
@@ -63,7 +64,7 @@ func (h *Handler) getPodAndEvents(ns string, parentName string) []model.Instance
 				asiaTime, err := util.ConvertUTCToAsiaShanghai(event.CreationTimestamp.Time)
 				if err != nil {
 					log.Errorf("解析时间出现错误:%v", err)
-					asiaTime = event.CreationTimestamp.Time.String()
+					asiaTime = event.CreationTimestamp.Time.Format(time.RFC3339)
 				}
 				instanceEvent := model.InstanceEvent{
 					Message: event.Message,

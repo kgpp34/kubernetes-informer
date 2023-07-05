@@ -1,5 +1,7 @@
 package model
 
+import "time"
+
 type App struct {
 	Namespace    string `json:"namespace"`
 	Name         string `json:"name"`
@@ -31,4 +33,14 @@ type AppInstance struct {
 
 type GetWorkloadInstanceResponse struct {
 	Apps []AppInstance `json:"apps"`
+}
+
+type ByTime []InstanceEvent
+
+func (s ByTime) Len() int      { return len(s) }
+func (s ByTime) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s ByTime) Less(i, j int) bool {
+	time1, _ := time.Parse(time.RFC3339, s[i].Time)
+	time2, _ := time.Parse(time.RFC3339, s[j].Time)
+	return time1.Before(time2)
 }

@@ -16,6 +16,7 @@ type InstanceEvent struct {
 	Reason  string `json:"reason"`
 	Message string `json:"message"`
 	Time    string `json:"time"`
+	Type    string `json:type`
 }
 
 type Instance struct {

@@ -70,6 +70,7 @@ func (h *Handler) getPodAndEvents(ns string, parentName string) []model.Instance
 					Message: event.Message,
 					Reason:  event.Reason,
 					Time:    asiaTime,
+					Type:    event.Type,
 				}
 				instEvents = append(instEvents, instanceEvent)
 			}

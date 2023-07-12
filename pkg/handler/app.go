@@ -91,13 +91,14 @@ func (h *Handler) getAppInstance(apps []model.App) []model.AppInstance {
 			deployments := h.DeploymentInformer.GetDeployments(app.Namespace, app.Name)
 			for _, deployment := range deployments {
 				appInstance := model.AppInstance{
-					Instances: h.getPodAndEvents(app.Namespace, app.Name),
-					Name:      app.Name,
-					Namespace: app.Namespace,
-					Ready:     deployment.Status.ReadyReplicas,
-					Total:     deployment.Status.Replicas,
-					Services:  h.getServices(app.Namespace, app.Name),
-					Labels:    deployment.Labels,
+					Instances:   h.getPodAndEvents(app.Namespace, app.Name),
+					Name:        app.Name,
+					Namespace:   app.Namespace,
+					Ready:       deployment.Status.ReadyReplicas,
+					Total:       deployment.Status.Replicas,
+					Services:    h.getServices(app.Namespace, app.Name),
+					Labels:      deployment.Labels,
+					Annotations: deployment.Annotations,
 				}
 				res = append(res, appInstance)
 			}
@@ -105,13 +106,14 @@ func (h *Handler) getAppInstance(apps []model.App) []model.AppInstance {
 			statefulSets := h.StatefulSetInformer.GetStatefulSets(app.Namespace, app.Name)
 			for _, statefulSet := range statefulSets {
 				appInstance := model.AppInstance{
-					Instances: h.getPodAndEvents(app.Namespace, app.Name),
-					Name:      app.Name,
-					Namespace: app.Namespace,
-					Ready:     statefulSet.Status.ReadyReplicas,
-					Total:     statefulSet.Status.Replicas,
-					Services:  h.getServices(app.Namespace, app.Name),
-					Labels:    statefulSet.Labels,
+					Instances:   h.getPodAndEvents(app.Namespace, app.Name),
+					Name:        app.Name,
+					Namespace:   app.Namespace,
+					Ready:       statefulSet.Status.ReadyReplicas,
+					Total:       statefulSet.Status.Replicas,
+					Services:    h.getServices(app.Namespace, app.Name),
+					Labels:      statefulSet.Labels,
+					Annotations: statefulSet.Annotations,
 				}
 				res = append(res, appInstance)
 			}

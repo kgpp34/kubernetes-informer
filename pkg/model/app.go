@@ -25,13 +25,14 @@ type Instance struct {
 }
 
 type AppInstance struct {
-	Namespace string            `json:"namespace"`
-	Name      string            `json:"name"`
-	Total     int32             `json:"total"`
-	Ready     int32             `json:"ready"`
-	Labels    map[string]string `json:"labels"`
-	Instances []Instance        `json:"instances"`
-	Services  []Service         `json:"services"`
+	Namespace   string            `json:"namespace"`
+	Name        string            `json:"name"`
+	Total       int32             `json:"total"`
+	Ready       int32             `json:"ready"`
+	Labels      map[string]string `json:"labels"`
+	Annotations map[string]string `json:"annotations"`
+	Instances   []Instance        `json:"instances"`
+	Services    []Service         `json:"services"`
 }
 
 type Service struct {

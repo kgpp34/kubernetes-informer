@@ -97,6 +97,7 @@ func (h *Handler) getAppInstance(apps []model.App) []model.AppInstance {
 					Ready:     deployment.Status.ReadyReplicas,
 					Total:     deployment.Status.Replicas,
 					Services:  h.getServices(app.Namespace, app.Name),
+					Labels:    deployment.Labels,
 				}
 				res = append(res, appInstance)
 			}
@@ -109,6 +110,8 @@ func (h *Handler) getAppInstance(apps []model.App) []model.AppInstance {
 					Namespace: app.Namespace,
 					Ready:     statefulSet.Status.ReadyReplicas,
 					Total:     statefulSet.Status.Replicas,
+					Services:  h.getServices(app.Namespace, app.Name),
+					Labels:    statefulSet.Labels,
 				}
 				res = append(res, appInstance)
 			}

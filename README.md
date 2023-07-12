@@ -8,3 +8,4 @@ kubernetes informer based on client-go
 - StatefulSet Informer
 - Pod Informer
 - Event Informer
+- Service Informer

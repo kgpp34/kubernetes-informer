@@ -1,11 +1,12 @@
 package router
 
 import (
-	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
 	"k8s-admin-informer/pkg/client"
 	"k8s-admin-informer/pkg/handler"
 	"k8s-admin-informer/pkg/informer"
+
+	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
 )
 
 type App struct {
@@ -15,6 +16,7 @@ type App struct {
 	DeploymentInformer  *informer.DeploymentInformer
 	StatefulSetInformer *informer.StatefulSetInformer
 	EventInformer       *informer.EventInformer
+	ServiceInformer     *informer.ServiceInformer
 }
 
 func NewApp() *App {
@@ -29,6 +31,7 @@ func (a *App) Register() {
 	a.Handler.DeploymentInformer = a.DeploymentInformer
 	a.Handler.StatefulSetInformer = a.StatefulSetInformer
 	a.Handler.EventInformer = a.EventInformer
+	a.Handler.ServiceInformer = a.ServiceInformer
 	// 查询工作负载后面的pod和event
 	a.router.POST("/informer/v1/getWorkloadInstance", a.Handler.GetWorkloadInstance)
 }
@@ -45,6 +48,7 @@ func (a *App) Run() {
 	a.EventInformer = informer.NewEventInformer(cs)
 	a.DeploymentInformer = informer.NewDeploymentInformer(cs)
 	a.StatefulSetInformer = informer.NewStatefulSetInformer(cs)
+	a.ServiceInformer = informer.NewServiceInformer(cs)
 
 	a.Register()
 	// 启动informer
@@ -54,6 +58,7 @@ func (a *App) Run() {
 	go a.DeploymentInformer.Run(stopCh)
 	go a.EventInformer.Run(stopCh)
 	go a.StatefulSetInformer.Run(stopCh)
+	go a.ServiceInformer.Run(stopCh)
 	//gin.SetMode(gin.)
 	err = a.router.Run(":8080")
 	if err != nil {

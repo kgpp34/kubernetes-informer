@@ -30,6 +30,13 @@ type AppInstance struct {
 	Total     int32      `json:"total"`
 	Ready     int32      `json:"ready"`
 	Instances []Instance `json:"instances"`
+	Services  []Service  `json:"services"`
+}
+
+type Service struct {
+	Name        string            `json:"name"`
+	Namespace   string            `json:"namespace"`
+	Annotations map[string]string `json:"annotations"`
 }
 
 type GetWorkloadInstanceResponse struct {

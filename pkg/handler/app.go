@@ -17,6 +17,7 @@ type Handler struct {
 	DeploymentInformer  *informer.DeploymentInformer
 	StatefulSetInformer *informer.StatefulSetInformer
 	EventInformer       *informer.EventInformer
+	ServiceInformer     *informer.ServiceInformer
 }
 
 func NewHandler() *Handler {
@@ -95,6 +96,7 @@ func (h *Handler) getAppInstance(apps []model.App) []model.AppInstance {
 					Namespace: app.Namespace,
 					Ready:     deployment.Status.ReadyReplicas,
 					Total:     deployment.Status.Replicas,
+					Services:  h.getServices(app.Namespace, app.Name),
 				}
 				res = append(res, appInstance)
 			}
@@ -112,6 +114,25 @@ func (h *Handler) getAppInstance(apps []model.App) []model.AppInstance {
 			}
 		}
 	}
+	return res
+}
+
+func (h *Handler) getServices(ns string, name string) []model.Service {
+	var res []model.Service
+
+	services := h.ServiceInformer.GetServices(ns, name)
+
+	for _, service := range services {
+		if service != nil {
+			modelSvc := model.Service{
+				Namespace:   service.Namespace,
+				Name:        service.Name,
+				Annotations: service.Annotations,
+			}
+			res = append(res, modelSvc)
+		}
+	}
+
 	return res
 }
 

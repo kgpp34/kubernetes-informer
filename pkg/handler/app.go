@@ -75,7 +75,7 @@ func (h *Handler) getPodAndEvents(ns string, parentName string) []model.Instance
 				}
 				instEvents = append(instEvents, instanceEvent)
 			}
-			sort.Sort(model.ByTime(instEvents))
+			
 		}
 		instance.Events = instEvents
 		instances = append(instances, instance)

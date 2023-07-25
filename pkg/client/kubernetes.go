@@ -3,6 +3,7 @@ package client
 import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -23,4 +24,21 @@ func NewKubernetesClientFromConfig(cfgPath string) (*kubernetes.Clientset, error
 	}
 
 	return cs, nil
+}
+
+func NewKubernetesClientInCluster() (*kubernetes.Clientset, error) {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		log.Errorf("获取集群内config失败: %v", err)
+		return nil, err
+	}
+
+	cs, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Errorf("创建client set失败: %v\n", err)
+		return nil, err
+	}
+
+	return cs, nil
+
 }

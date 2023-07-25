@@ -38,7 +38,7 @@ func (a *App) Register() {
 
 func (a *App) Run() {
 	// 启动gin http server
-	cs, err := client.NewKubernetesClientFromConfig("/deployment/config/kubeconfig")
+	cs, err := client.NewKubernetesClientInCluster()
 	if err != nil {
 		log.Errorf("创建clientSet失败，错误原因:%v", err)
 		panic(err)

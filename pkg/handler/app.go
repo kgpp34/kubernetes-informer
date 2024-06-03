@@ -4,8 +4,8 @@ import (
 	"k8s-admin-informer/pkg/informer"
 	"k8s-admin-informer/pkg/model"
 	"k8s-admin-informer/pkg/util"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"net/http"
-	"sort"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -13,15 +13,68 @@ import (
 )
 
 type Handler struct {
-	PodInformer         *informer.PodInformer
-	DeploymentInformer  *informer.DeploymentInformer
-	StatefulSetInformer *informer.StatefulSetInformer
-	EventInformer       *informer.EventInformer
-	ServiceInformer     *informer.ServiceInformer
+	PodInformer          *informer.PodInformer
+	DeploymentInformer   *informer.DeploymentInformer
+	StatefulSetInformer  *informer.StatefulSetInformer
+	EventInformer        *informer.EventInformer
+	ServiceInformer      *informer.ServiceInformer
+	DeptResourceInformer *informer.DeptResourceQuotaInformer
 }
 
 func NewHandler() *Handler {
 	return &Handler{}
+}
+
+func (h *Handler) ComputeDeptResourceQuotaLimit(c *gin.Context) {
+	var req model.DeptResourceQuotaRequest
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	deptResourceQuota := h.DeptResourceInformer.GetDeptResourceQuotaByName(req.Dept)
+	if deptResourceQuota == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "DeptResourceQuota not found"})
+		return
+	}
+
+	// 比较 Spec.Resources.Limits.Memory 与 Status.NonXcMemory
+	if cmpResult := deptResourceQuota.Spec.Resources.NonXcResources.Limits.Memory().Cmp(deptResourceQuota.Status.UsedResources.UsedNonXcResource.Limits.Memory().DeepCopy()); cmpResult < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "reason": "Non-XC memory usage exceeds limit"})
+		return
+	}
+
+	// 比较 Spec.XcResources.Limits.Memory 与 Status.XcMemory
+	kylinMemory := deptResourceQuota.Status.UsedResources.UsedXcResource.KylinResource.Limits.Memory()
+	if cmpResult := deptResourceQuota.Spec.Resources.XcResources.KylinResource.Limits.Memory().Cmp(kylinMemory.DeepCopy()); cmpResult < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "reason": "XC memory usage exceeds limit"})
+		return
+	}
+
+	requestNonXcMem := resource.MustParse(req.RequestNonXcMemory)
+	requestXcMem := resource.MustParse(req.RequestXcMemory)
+
+	// 将请求中的 memory 和 xcMemory 分别加到 Status 中对应的字段
+	newNonXcMemory := deptResourceQuota.Status.UsedResources.UsedNonXcResource.Limits.Memory().DeepCopy()
+	newNonXcMemory.Add(requestNonXcMem)
+
+	newXcMemory := deptResourceQuota.Status.UsedResources.UsedXcResource.KylinResource.Limits.Memory().DeepCopy()
+	newXcMemory.Add(requestXcMem)
+
+	// 比较 newNonXcMemory 与 Spec.Resources.Limits.Memory
+	if cmpResult := deptResourceQuota.Spec.Resources.NonXcResources.Limits.Memory().Cmp(newNonXcMemory); cmpResult < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "reason": "After adding request, non-XC memory usage exceeds limit"})
+		return
+	}
+
+	// 比较 newXcMemory 与 Spec.XcResources.Limits.Memory
+	if cmpResult := deptResourceQuota.Spec.Resources.XcResources.KylinResource.Limits.Memory().Cmp(newXcMemory); cmpResult < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "reason": "After adding request, XC memory usage exceeds limit"})
+		return
+	}
+
+	// 如果所有检查都通过
+	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
 func (h *Handler) GetWorkloadInstance(c *gin.Context) {
@@ -75,7 +128,7 @@ func (h *Handler) getPodAndEvents(ns string, parentName string) []model.Instance
 				}
 				instEvents = append(instEvents, instanceEvent)
 			}
-			
+
 		}
 		instance.Events = instEvents
 		instances = append(instances, instance)

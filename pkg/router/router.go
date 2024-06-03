@@ -10,13 +10,14 @@ import (
 )
 
 type App struct {
-	router              *gin.Engine
-	Handler             *handler.Handler
-	PodInformer         *informer.PodInformer
-	DeploymentInformer  *informer.DeploymentInformer
-	StatefulSetInformer *informer.StatefulSetInformer
-	EventInformer       *informer.EventInformer
-	ServiceInformer     *informer.ServiceInformer
+	router                    *gin.Engine
+	Handler                   *handler.Handler
+	PodInformer               *informer.PodInformer
+	DeploymentInformer        *informer.DeploymentInformer
+	StatefulSetInformer       *informer.StatefulSetInformer
+	EventInformer             *informer.EventInformer
+	ServiceInformer           *informer.ServiceInformer
+	DeptResourceQuotaInformer *informer.DeptResourceQuotaInformer
 }
 
 func NewApp() *App {
@@ -32,13 +33,15 @@ func (a *App) Register() {
 	a.Handler.StatefulSetInformer = a.StatefulSetInformer
 	a.Handler.EventInformer = a.EventInformer
 	a.Handler.ServiceInformer = a.ServiceInformer
+	a.Handler.DeptResourceInformer = a.DeptResourceQuotaInformer
 	// 查询工作负载后面的pod和event
 	a.router.POST("/informer/v1/getWorkloadInstance", a.Handler.GetWorkloadInstance)
+	a.router.POST("/informer/v1/computeDeptResource", a.Handler.ComputeDeptResourceQuotaLimit)
 }
 
 func (a *App) Run() {
 	// 启动gin http server
-	cs, err := client.NewKubernetesClientInCluster()
+	cs, dc, err := client.NewKubernetesClientFromConfig("/Users/yanglinhan/.kube/config")
 	if err != nil {
 		log.Errorf("创建clientSet失败，错误原因:%v", err)
 		panic(err)
@@ -49,19 +52,23 @@ func (a *App) Run() {
 	a.DeploymentInformer = informer.NewDeploymentInformer(cs)
 	a.StatefulSetInformer = informer.NewStatefulSetInformer(cs)
 	a.ServiceInformer = informer.NewServiceInformer(cs)
+	a.DeptResourceQuotaInformer = informer.NewDeptResourceQuotaInformer(dc)
 
 	a.Register()
 	// 启动informer
 	stopCh := make(chan struct{})
 	defer close(stopCh)
+
 	go a.PodInformer.Run(stopCh)
 	go a.DeploymentInformer.Run(stopCh)
 	go a.EventInformer.Run(stopCh)
 	go a.StatefulSetInformer.Run(stopCh)
 	go a.ServiceInformer.Run(stopCh)
-	//gin.SetMode(gin.)
-	err = a.router.Run(":8080")
+	go a.DeptResourceQuotaInformer.Run(stopCh)
+
+	err = a.router.Run(":8991")
 	if err != nil {
 		panic(err)
 	}
+
 }

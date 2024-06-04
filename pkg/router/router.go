@@ -41,8 +41,8 @@ func (a *App) Register() {
 
 func (a *App) Run() {
 	// 启动gin http server
-	//cs, dc, err := client.NewKubernetesClientFromConfig("/Users/yanglinhan/.kube/config")
-	cs, dc, err := client.NewKubernetesClientInCluster()
+	cs, dc, err := client.NewKubernetesClientFromConfig("/Users/yanglinhan/.kube/config")
+	//cs, dc, err := client.NewKubernetesClientInCluster()
 	if err != nil {
 		log.Errorf("创建clientSet失败，错误原因:%v", err)
 		panic(err)
@@ -67,7 +67,7 @@ func (a *App) Run() {
 	go a.ServiceInformer.Run(stopCh)
 	go a.DeptResourceQuotaInformer.Run(stopCh)
 
-	err = a.router.Run(":8991")
+	err = a.router.Run(":8080")
 	if err != nil {
 		panic(err)
 	}

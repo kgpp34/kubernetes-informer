@@ -78,6 +78,10 @@ func (serviceInformer *ServiceInformer) GetServices(ns string, name string) []*c
 	return res
 }
 
-func (serviceInformer *ServiceInformer) Run(stopCh chan struct{}) {
+func (serviceInformer *ServiceInformer) Start(stopCh <-chan struct{}) {
 	serviceInformer.informer.Run(stopCh)
+}
+
+func (serviceInformer *ServiceInformer) HasSynced() bool {
+	return serviceInformer.informer.HasSynced()
 }

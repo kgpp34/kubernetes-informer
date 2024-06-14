@@ -32,13 +32,14 @@ func NewPodInformer(cs *kubernetes.Clientset) *PodInformer {
 			cache.Indexers{},
 		),
 	}
-	// 设置索引
+	// 设置namespace索引
 	namespaceSvcIndexFunc := genNamespaceSvcIndexFunc()
 	podInformer.AddIndexer(namespaceSvcIndexFunc, "NamespaceReleaseIdx")
+
 	return &podInformer
 }
 
-func (podInformer *PodInformer) Run(stopCh chan struct{}) {
+func (podInformer *PodInformer) Start(stopCh <-chan struct{}) {
 	podInformer.informer.Run(stopCh)
 }
 
@@ -83,4 +84,8 @@ func (podInformer *PodInformer) GetPodsByNsAndParent(ns string, parentName strin
 	}
 
 	return res, nil
+}
+
+func (podInformer *PodInformer) HasSynced() bool {
+	return podInformer.informer.HasSynced()
 }

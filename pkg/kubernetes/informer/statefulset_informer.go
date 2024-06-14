@@ -77,6 +77,10 @@ func (statefulSetInformer *StatefulSetInformer) GetStatefulSets(ns string, name 
 	return res
 }
 
-func (statefulSetInformer *StatefulSetInformer) Run(stopCh chan struct{}) {
+func (statefulSetInformer *StatefulSetInformer) Start(stopCh <-chan struct{}) {
 	statefulSetInformer.informer.Run(stopCh)
+}
+
+func (statefulSetInformer *StatefulSetInformer) HasSynced() bool {
+	return statefulSetInformer.informer.HasSynced()
 }

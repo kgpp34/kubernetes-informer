@@ -1,4 +1,4 @@
-# informer
+# k8s-admin-informer
 
 kubernetes informer based on client-go
 
@@ -9,3 +9,5 @@ kubernetes informer based on client-go
 - Pod Informer
 - Event Informer
 - Service Informer
+- Node Informer
+- DeptResourceQuota Informer

@@ -37,7 +37,7 @@ func NewEventInformer(cs *kubernetes.Clientset) *EventInformer {
 	return &eventInformer
 }
 
-func (eventInformer *EventInformer) Run(stopCh chan struct{}) {
+func (eventInformer *EventInformer) Start(stopCh <-chan struct{}) {
 	eventInformer.informer.Run(stopCh)
 }
 
@@ -80,4 +80,8 @@ func (eventInformer *EventInformer) GetPodEvent(ns string, pod string) []*coreV1
 	}
 
 	return res
+}
+
+func (eventInformer *EventInformer) HasSynced() bool {
+	return eventInformer.informer.HasSynced()
 }

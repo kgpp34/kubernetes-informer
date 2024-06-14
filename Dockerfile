@@ -18,18 +18,6 @@ COPY api/ api/
 # 构建项目
 RUN go build -o main ./cmd/main.go
 
-# 第二阶段：创建一个更小的镜像
-FROM alpine:latest
-
-# 安装 ca-certificates 以便于 TLS 连接
-RUN apk --no-cache add ca-certificates
-
-# 设置工作目录
-WORKDIR /root/
-
-# 从 builder 镜像中复制构建的可执行文件
-COPY --from=builder /app/main .
-
 # 暴露应用端口
 EXPOSE 8080
 

@@ -77,6 +77,10 @@ func (depInformer *DeploymentInformer) GetDeployments(ns string, name string) []
 	return res
 }
 
-func (depInformer *DeploymentInformer) Run(stopCh chan struct{}) {
+func (depInformer *DeploymentInformer) Start(stopCh <-chan struct{}) {
 	depInformer.informer.Run(stopCh)
+}
+
+func (depInformer *DeploymentInformer) HasSynced() bool {
+	return depInformer.informer.HasSynced()
 }

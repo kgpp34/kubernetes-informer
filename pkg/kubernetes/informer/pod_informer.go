@@ -5,14 +5,17 @@ import (
 	log "github.com/sirupsen/logrus"
 	coreV1 "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"time"
 )
 
 type PodInformer struct {
 	informer cache.SharedIndexInformer
+	cs       *kubernetes.Clientset
 }
 
 // NewPodInformer 新建podInformer
@@ -28,9 +31,10 @@ func NewPodInformer(cs *kubernetes.Clientset) *PodInformer {
 				},
 			},
 			&coreV1.Pod{},
-			3000,
+			10*time.Second,
 			cache.Indexers{},
 		),
+		cs: cs,
 	}
 	// 设置namespace索引
 	namespaceSvcIndexFunc := genNamespaceSvcIndexFunc()
@@ -62,7 +66,7 @@ func (podInformer *PodInformer) AddIndexer(idxFunc cache.IndexFunc, idxName stri
 	if err != nil {
 		log.Errorf("增加索引失败:%v", err)
 	}
-	log.Infof("增加Pod索引：%s", idxName)
+	//log.Infof("增加Pod索引：%s", idxName)
 }
 
 // GetPodsByNsAndParent 根据namespace和parent名查询pod
@@ -88,4 +92,28 @@ func (podInformer *PodInformer) GetPodsByNsAndParent(ns string, parentName strin
 
 func (podInformer *PodInformer) HasSynced() bool {
 	return podInformer.informer.HasSynced()
+}
+
+func (podInformer *PodInformer) List() []*coreV1.Pod {
+	list := podInformer.informer.GetStore().List()
+	var res []*coreV1.Pod
+	for _, obj := range list {
+		pod := obj.(*coreV1.Pod)
+		res = append(res, pod)
+	}
+	return res
+}
+
+func (podInformer *PodInformer) ListBySelector(ls labels.Set) []coreV1.Pod {
+	var pods []coreV1.Pod
+	list, err := podInformer.cs.CoreV1().Pods(metaV1.NamespaceAll).List(context.TODO(), metaV1.ListOptions{LabelSelector: ls.String()})
+	if err != nil {
+		return pods
+	}
+
+	for _, pod := range list.Items {
+		pods = append(pods, pod)
+	}
+
+	return pods
 }

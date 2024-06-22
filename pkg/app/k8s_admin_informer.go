@@ -2,6 +2,7 @@ package app
 
 import (
 	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
 	"k8s-admin-informer/pkg/handler"
 )
 
@@ -35,16 +36,22 @@ func (a *App) registerRoute() {
 	a.engine.GET("/informer/v1/resource/node", a.rscHandler.NodeResources)
 	// 获取部门资源
 	a.engine.GET("/informer/v1/resource/dept", a.rscHandler.DeptResources)
+	// 获取集群资源
+	a.engine.GET("/informer/v1/resource/cluster", a.rscHandler.ClusterResources)
+	// 获取部门资源
+	a.engine.GET("/informer/v1/resource/env", a.rscHandler.EnvResources)
 }
 
 func (a *App) Run() error {
 	// 注册路由
 	a.registerRoute()
 
-	// 启动各个informer
-	if err := a.baseHandler.Start(); err != nil {
-		return err
-	}
+	go func() {
+		// 启动各个informer
+		if err := a.baseHandler.Start(); err != nil {
+			log.Errorf("启动informer出现异常：%v", err)
+		}
+	}()
 
 	// 运行server
 	err := a.engine.Run(":8080")

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"k8s-admin-informer/pkg/kubernetes/informer"
@@ -48,19 +47,14 @@ func (h *ResourceHandler) ComputeDeptResourceQuotaLimit(c *gin.Context) {
 
 	// 比较 Spec.Resources.Limits.Memory 与 Status.NonXcMemory
 	if cmpResult := deptResourceQuota.Spec.Resources.NonXcResources.Limits.Memory().Cmp(deptResourceQuota.Status.UsedResources.UsedNonXcResource.Limits.Memory().DeepCopy()); cmpResult < 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"reason": fmt.Sprintf("当前部门已声明的非信创内存已经超过部门非信创内存资源配额,当前已声明的信创内存值:%s, 部门信创内存配额：%s", deptResourceQuota.Status.UsedResources.UsedNonXcResource.Limits.Memory().String(),
-				deptResourceQuota.Spec.Resources.NonXcResources.Limits.Memory())})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "reason": "Non-XC memory usage exceeds limit"})
 		return
 	}
 
 	// 比较 Spec.XcResources.Limits.Memory 与 Status.XcMemory
 	kylinMemory := deptResourceQuota.Status.UsedResources.UsedXcResource.KylinResource.Limits.Memory()
 	if cmpResult := deptResourceQuota.Spec.Resources.XcResources.KylinResource.Limits.Memory().Cmp(kylinMemory.DeepCopy()); cmpResult < 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"reason":  fmt.Sprintf("当前部门已声明的信创内存量已经超过部门信创内存资源配额， 当前已声明的信创内存值:%s, 部门信创内存配额：%s", kylinMemory.String(), deptResourceQuota.Spec.Resources.XcResources.KylinResource.Limits.Memory().String())})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "reason": "XC memory usage exceeds limit"})
 		return
 	}
 
@@ -77,10 +71,7 @@ func (h *ResourceHandler) ComputeDeptResourceQuotaLimit(c *gin.Context) {
 	// 比较 newNonXcMemory 与 Spec.Resources.Limits.Memory
 	if !deptResourceQuota.Spec.Resources.NonXcResources.Limits.Memory().IsZero() || !newNonXcMemory.IsZero() {
 		if cmpResult := deptResourceQuota.Spec.Resources.NonXcResources.Limits.Memory().Cmp(newNonXcMemory); cmpResult <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "reason": fmt.Sprintf("本次申请的非信创内存量超限, 本次申请值：%s, 当前已声明的非信创内存:%s, 部门非信创内存配额：%s",
-				requestNonXcMem.String(), deptResourceQuota.Status.UsedResources.UsedNonXcResource.Limits.Memory().String(),
-				deptResourceQuota.Spec.Resources.NonXcResources.Limits.Memory().String()),
-			})
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "reason": "After adding request, non-XC memory usage exceeds limit"})
 			return
 		}
 	}
@@ -88,16 +79,13 @@ func (h *ResourceHandler) ComputeDeptResourceQuotaLimit(c *gin.Context) {
 	// 比较 newXcMemory 与 Spec.XcResources.Limits.Memory
 	if !deptResourceQuota.Spec.Resources.XcResources.KylinResource.Limits.Memory().IsZero() || !newXcMemory.IsZero() {
 		if cmpResult := deptResourceQuota.Spec.Resources.XcResources.KylinResource.Limits.Memory().Cmp(newXcMemory); cmpResult <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "reason": fmt.Sprintf("本次申请的信创内存量超限, 本次申请值：%s, 当前已声明的信创内存:%s, 部门信创内存配额：%s",
-				requestXcMem.String(), deptResourceQuota.Status.UsedResources.UsedXcResource.KylinResource.Limits.Memory().String(),
-				deptResourceQuota.Spec.Resources.XcResources.KylinResource.Limits.Memory().String()),
-			})
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "reason": "After adding request, XC memory usage exceeds limit"})
 			return
 		}
 	}
 
 	// 如果所有检查都通过
-	c.JSON(http.StatusOK, gin.H{"success": true, "reason": ""})
+	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
 func (h *ResourceHandler) DeptResources(c *gin.Context) {
@@ -217,4 +205,89 @@ func (h *ResourceHandler) NodeResources(c *gin.Context) {
 		})
 	}
 	c.JSON(http.StatusOK, nodeList)
+}
+
+// ClusterResources return the cluster resources(so far, only limits memory)
+func (h *ResourceHandler) ClusterResources(c *gin.Context) {
+	pods := h.Handler.Informers[PodInformer].(*informer.PodInformer).List()
+
+	nonXcQuantity := resource.MustParse("0Mi")
+	xcQuantity := resource.MustParse("0Mi")
+	for _, pod := range pods {
+		for _, c := range pod.Spec.Containers {
+			if strings.Contains(pod.Spec.NodeName, "b") {
+				nonXcQuantity.Add(c.Resources.Limits.Memory().DeepCopy())
+			} else if strings.Contains(pod.Spec.NodeName, "kk") {
+				xcQuantity.Add(c.Resources.Limits.Memory().DeepCopy())
+			}
+		}
+	}
+
+	clusterResource := model.ClusterResource{
+		NonXcLimitsResources: map[string]string{
+			"memory": nonXcQuantity.String(),
+		},
+		XcLimitsResources: model.XcLimitsResources{
+			Hg: struct{}{},
+			Kylin: map[string]string{
+				"memory": xcQuantity.String(),
+			},
+		},
+	}
+
+	c.JSON(http.StatusOK, clusterResource)
+}
+
+func (h *ResourceHandler) EnvResources(c *gin.Context) {
+	dept := c.Query("dept")
+	if dept == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "dept query parameter is required"})
+		return
+	}
+
+	labelSelector := labels.Set{"department": dept}
+	pods := h.Handler.Informers[PodInformer].(*informer.PodInformer).ListBySelector(labelSelector)
+	if len(pods) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unable query dept pods"})
+		return
+	}
+
+	envPods := make(map[string]model.EnvResource)
+	for _, pod := range pods {
+		namespaceGroup, exists := pod.Labels["namespaceGroup"]
+		if exists {
+			if _, groupExists := envPods[namespaceGroup]; !groupExists {
+				nonXcMemory := resource.MustParse("0Mi")
+				kylinMemory := resource.MustParse("0Mi")
+				envPods[namespaceGroup] = model.EnvResource{
+					Dept:    dept,
+					EnvName: namespaceGroup,
+					NonXcResource: model.NonXcResource{
+						CommonResource: model.CommonResource{
+							Limits: model.ComputationResources{
+								Memory: &nonXcMemory,
+							},
+						},
+					},
+					XcResource: model.XcResource{
+						Kylin: model.CommonResource{
+							Limits: model.ComputationResources{
+								Memory: &kylinMemory,
+							},
+						},
+						Hg: model.CommonResource{},
+					},
+				}
+			}
+			for _, c := range pod.Spec.Containers {
+				if strings.Contains(pod.Spec.NodeName, "b") {
+					envPods[namespaceGroup].NonXcResource.Limits.Memory.Add(c.Resources.Limits.Memory().DeepCopy())
+				} else if strings.Contains(pod.Spec.NodeName, "kk") {
+					envPods[namespaceGroup].XcResource.Kylin.Limits.Memory.Add(c.Resources.Limits.Memory().DeepCopy())
+				}
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, envPods)
 }

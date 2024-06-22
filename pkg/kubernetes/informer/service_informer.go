@@ -2,6 +2,7 @@ package informer
 
 import (
 	"context"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	coreV1 "k8s.io/api/core/v1"
@@ -28,7 +29,7 @@ func NewServiceInformer(cs *kubernetes.Clientset) *ServiceInformer {
 				},
 			},
 			&coreV1.Service{},
-			3000,
+			1*time.Second,
 			cache.Indexers{},
 		),
 	}
@@ -45,7 +46,7 @@ func (serviceInformer *ServiceInformer) AddIndexer(idxFunc cache.IndexFunc, idxN
 	if err != nil {
 		log.Errorf("增加索引失败:%v", err)
 	}
-	log.Infof("增加Service索引：%s", idxName)
+	//log.Infof("增加Service索引：%s", idxName)
 }
 
 func genNamespaceServiceIndexFunc() cache.IndexFunc {
@@ -79,7 +80,7 @@ func (serviceInformer *ServiceInformer) GetServices(ns string, name string) []*c
 }
 
 func (serviceInformer *ServiceInformer) Start(stopCh <-chan struct{}) {
-	serviceInformer.informer.Run(stopCh)
+	//serviceInformer.informer.Run(stopCh)
 }
 
 func (serviceInformer *ServiceInformer) HasSynced() bool {

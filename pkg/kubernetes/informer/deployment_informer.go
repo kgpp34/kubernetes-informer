@@ -2,6 +2,7 @@ package informer
 
 import (
 	"context"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	appsV1 "k8s.io/api/apps/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -9,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"time"
 )
 
 type DeploymentInformer struct {
@@ -20,19 +22,45 @@ func NewDeploymentInformer(cs *kubernetes.Clientset) *DeploymentInformer {
 		informer: cache.NewSharedIndexInformer(
 			&cache.ListWatch{
 				ListFunc: func(options metaV1.ListOptions) (runtime.Object, error) {
-					return cs.AppsV1().Deployments(metaV1.NamespaceAll).List(context.TODO(), options)
+					list, err := cs.AppsV1().Deployments(metaV1.NamespaceAll).List(context.TODO(), options)
+					if err != nil {
+						log.Errorf("list deployment 异常:%v", err)
+						return nil, err
+					}
+					return list, err
 				},
 				WatchFunc: func(options metaV1.ListOptions) (watch.Interface, error) {
-					return cs.AppsV1().Deployments(metaV1.NamespaceAll).Watch(context.TODO(), options)
+					w, err := cs.AppsV1().Deployments(metaV1.NamespaceAll).Watch(context.TODO(), options)
+					if err != nil {
+						log.Errorf("watch deployment 异常:%v", err)
+						return nil, err
+					}
+					return w, err
 				},
 			},
 			&appsV1.Deployment{},
-			3000,
+			10*time.Second,
 			cache.Indexers{},
 		),
 	}
 	indexFunc := genNamespaceDepIndexFunc()
 	deploymentInformer.AddIndexer(indexFunc, "namespaceDepIdx")
+
+	_, err := deploymentInformer.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: nil,
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			oldDep := oldObj.(*appsV1.Deployment)
+			newDep := newObj.(*appsV1.Deployment)
+			if oldDep.Namespace == "tdd-m6-biz-docker" && oldDep.Name == "aut" {
+				fmt.Println(oldDep)
+				fmt.Println(newDep)
+			}
+		},
+		DeleteFunc: nil,
+	})
+	if err != nil {
+		return nil
+	}
 	return &deploymentInformer
 }
 
@@ -44,7 +72,7 @@ func (depInformer *DeploymentInformer) AddIndexer(idxFunc cache.IndexFunc, idxNa
 	if err != nil {
 		log.Errorf("增加索引失败:%v", err)
 	}
-	log.Infof("增加Deployment索引：%s", idxName)
+	//log.Infof("增加Deployment索引：%s", idxName)
 }
 
 func genNamespaceDepIndexFunc() cache.IndexFunc {
@@ -83,4 +111,5 @@ func (depInformer *DeploymentInformer) Start(stopCh <-chan struct{}) {
 
 func (depInformer *DeploymentInformer) HasSynced() bool {
 	return depInformer.informer.HasSynced()
+	//return true
 }

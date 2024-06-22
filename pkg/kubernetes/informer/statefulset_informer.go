@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"time"
 )
 
 type StatefulSetInformer struct {
@@ -27,7 +28,7 @@ func NewStatefulSetInformer(cs *kubernetes.Clientset) *StatefulSetInformer {
 				},
 			},
 			&appsV1.StatefulSet{},
-			3000,
+			1*time.Second,
 			cache.Indexers{},
 		),
 	}
@@ -44,7 +45,7 @@ func (statefulSetInformer *StatefulSetInformer) AddIndexer(idxFunc cache.IndexFu
 	if err != nil {
 		log.Errorf("增加索引失败:%v", err)
 	}
-	log.Infof("增加StatefulSet索引：%s", idxName)
+	//log.Infof("增加StatefulSet索引：%s", idxName)
 }
 
 func genNamespaceStatIndexFunc() cache.IndexFunc {

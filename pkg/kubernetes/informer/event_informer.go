@@ -28,7 +28,7 @@ func NewEventInformer(cs *kubernetes.Clientset) *EventInformer {
 				},
 			},
 			&coreV1.Event{},
-			3000,
+			0,
 			cache.Indexers{},
 		),
 	}
@@ -56,7 +56,7 @@ func (eventInformer *EventInformer) AddIndexer(idxFunc cache.IndexFunc, idxName 
 	if err != nil {
 		log.Errorf("增加索引失败:%v", err)
 	}
-	log.Infof("增加Event索引：%s", idxName)
+	//log.Infof("增加Event索引：%s", idxName)
 }
 
 // GetPodEvent 获取pod事件

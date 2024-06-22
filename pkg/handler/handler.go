@@ -1,13 +1,20 @@
 package handler
 
 import (
+	"context"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	k8s "k8s-admin-informer/pkg/kubernetes"
 	"k8s-admin-informer/pkg/kubernetes/informer"
+	appsV1 "k8s.io/api/apps/v1"
+	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	metricsv "k8s.io/metrics/pkg/client/clientset/versioned"
+	"time"
 )
 
 const (
@@ -25,6 +32,7 @@ type Handler struct {
 	dynamicClient dynamic.Interface
 	metricsClient *metricsv.Clientset
 	Informers     map[string]informer.Informer
+	D             cache.SharedIndexInformer
 }
 
 func NewHandler() (*Handler, error) {
@@ -48,6 +56,29 @@ func NewHandler() (*Handler, error) {
 			NodeInformer:              &informer.NodeInformer{},
 			ServiceInformer:           &informer.ServiceInformer{},
 		},
+		D: cache.NewSharedIndexInformer(
+			&cache.ListWatch{
+				ListFunc: func(options metaV1.ListOptions) (runtime.Object, error) {
+					list, err := cs.AppsV1().Deployments(metaV1.NamespaceAll).List(context.TODO(), options)
+					if err != nil {
+						log.Errorf("list deployment异常:%v", err)
+						return nil, err
+					}
+					return list, nil
+				},
+				WatchFunc: func(options metaV1.ListOptions) (watch.Interface, error) {
+					return cs.AppsV1().Deployments(metaV1.NamespaceAll).Watch(context.TODO(), options)
+				},
+			},
+			&appsV1.Deployment{},
+			30*time.Second,
+			cache.Indexers{
+				"namespaceDepIdx": func(obj interface{}) ([]string, error) {
+					dep := obj.(*appsV1.Deployment)
+					return []string{dep.Namespace + "/" + dep.Name}, nil
+				},
+			},
+		),
 	}, nil
 }
 
@@ -64,18 +95,23 @@ func (h *Handler) Start() error {
 	// 启动informer
 	stopCh := make(chan struct{})
 	defer close(stopCh)
-	for _, inf := range h.Informers {
-		go inf.Start(stopCh)
+
+	for name, inf := range h.Informers {
+		go func(name string, inf informer.Informer) {
+			log.Infof("启动informer: %s", name)
+			inf.Start(stopCh)
+			log.Infof("informer：%s 已停止", name)
+		}(name, inf)
 	}
 
-	// 检测同步是否完成
 	synced := make([]cache.InformerSynced, 0, len(h.Informers))
-	for _, inf := range h.Informers {
+	for name, inf := range h.Informers {
+		log.Infof("等待:%s同步", name)
 		synced = append(synced, inf.HasSynced)
 	}
-
 	if !cache.WaitForCacheSync(stopCh, synced...) {
 		log.Errorf("等待缓存同步失败")
+		return fmt.Errorf("等待缓存同步失败")
 	}
 
 	return nil

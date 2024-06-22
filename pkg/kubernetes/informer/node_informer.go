@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"time"
 )
 
 type NodeInformer struct {
@@ -27,7 +28,7 @@ func NewNodeInformer(cs *kubernetes.Clientset) *NodeInformer {
 				},
 			},
 			&coreV1.Node{},
-			3000,
+			1*time.Second,
 			cache.Indexers{}),
 	}
 }

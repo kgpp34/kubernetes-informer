@@ -81,6 +81,7 @@ func (a *App) prometheusHandler() gin.HandlerFunc {
 	h := promhttp.Handler()
 
 	return func(context *gin.Context) {
+		a.rscHandler.ProbeDeptResource()
 		h.ServeHTTP(context.Writer, context.Request)
 	}
 }

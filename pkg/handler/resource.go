@@ -47,6 +47,13 @@ var (
 	)
 )
 
+func init() {
+	// 注册自定义指标
+	prometheus.MustRegister(deptMemResourceQuota)
+	prometheus.MustRegister(deptUsedMemResource)
+	prometheus.MustRegister(deptPodCount)
+}
+
 func (h *ResourceHandler) ProbeDeptResource() {
 	deptResources := h.GetDeptResource()
 	for _, deptResource := range deptResources {

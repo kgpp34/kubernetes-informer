@@ -26,15 +26,15 @@ const (
 var (
 	deptMemResourceQuota = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "dept_memory_resource_quota_total",
-			Help: "Department current resource quota.",
+			Name: "dept_memory_resource_quota_bytes",
+			Help: "Department current resource quota bytes.",
 		},
 		[]string{"department", "os", "arch"},
 	)
 	deptUsedMemResource = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "dept_used_memory_resource",
-			Help: "Department used memory resource.",
+			Name: "dept_used_memory_quota_bytes",
+			Help: "Department used memory resource quota bytes.",
 		},
 		[]string{"department", "os", "arch"},
 	)

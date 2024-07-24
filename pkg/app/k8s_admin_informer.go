@@ -2,8 +2,10 @@ package app
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"k8s-admin-informer/pkg/handler"
+	"time"
 )
 
 type App struct {
@@ -40,9 +42,23 @@ func (a *App) registerRoute() {
 	a.engine.GET("/informer/v1/resource/cluster", a.rscHandler.ClusterResources)
 	// 获取部门资源
 	a.engine.GET("/informer/v1/resource/env", a.rscHandler.EnvResources)
+	// prometheus metrics
+	a.engine.GET("/metrics", a.prometheusHandler())
 }
 
 func (a *App) Run() error {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				// 调用 probeDeptResource 函数更新指标数据
+				a.rscHandler.ProbeDeptResource()
+			}
+		}
+	}()
+
 	// 注册路由
 	a.registerRoute()
 
@@ -59,4 +75,12 @@ func (a *App) Run() error {
 		return err
 	}
 	return nil
+}
+
+func (a *App) prometheusHandler() gin.HandlerFunc {
+	h := promhttp.Handler()
+
+	return func(context *gin.Context) {
+		h.ServeHTTP(context.Writer, context.Request)
+	}
 }

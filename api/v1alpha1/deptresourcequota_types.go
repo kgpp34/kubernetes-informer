@@ -1,5 +1,5 @@
 /*
-Copyright k8s-admin-informer Arthur 2024.
+Copyright 2024.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -36,8 +36,8 @@ type WkResources struct {
 
 // XcResources defines the xc resources
 type XcResources struct {
-	HgResource    ComputationResources `json:"hg,omitempty"`
-	KylinResource ComputationResources `json:"kylin,omitempty"`
+	HgResource  ComputationResources `json:"hg,omitempty"`
+	ArmResource ComputationResources `json:"arm,omitempty"`
 }
 
 // DeptResourceQuotaSpec defines the desired state of DeptResourceQuota
@@ -61,8 +61,8 @@ type UsedComputationResource struct {
 	Requests corev1.ResourceList `json:"requests,omitempty"`
 }
 type UsedXcResource struct {
-	HgResource    UsedComputationResource `json:"hg,omitempty"`
-	KylinResource UsedComputationResource `json:"kylin,omitempty"`
+	HgResource  UsedComputationResource `json:"hg,omitempty"`
+	ArmResource UsedComputationResource `json:"arm,omitempty"`
 }
 
 type UsedResources struct {

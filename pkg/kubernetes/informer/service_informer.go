@@ -80,7 +80,7 @@ func (serviceInformer *ServiceInformer) GetServices(ns string, name string) []*c
 }
 
 func (serviceInformer *ServiceInformer) Start(stopCh <-chan struct{}) {
-	//serviceInformer.informer.Run(stopCh)
+	serviceInformer.informer.Run(stopCh)
 }
 
 func (serviceInformer *ServiceInformer) HasSynced() bool {

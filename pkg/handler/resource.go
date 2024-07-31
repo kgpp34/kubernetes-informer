@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	"k8s-admin-informer/pkg/kubernetes/informer"
 	"k8s-admin-informer/pkg/model"
@@ -21,6 +22,55 @@ const (
 	XcNode    NodeType = "xc"
 	NonXcNode NodeType = "nonXc"
 )
+
+var (
+	deptMemResourceQuota = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "dept_memory_resource_quota_bytes",
+			Help: "Department current resource quota bytes.",
+		},
+		[]string{"department", "os", "arch"},
+	)
+	deptUsedMemResource = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "dept_used_memory_quota_bytes",
+			Help: "Department used memory resource quota bytes.",
+		},
+		[]string{"department", "os", "arch"},
+	)
+	deptPodCount = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "dept_current_pods_num_total",
+			Help: "Department current pod counts.",
+		},
+		[]string{"department"},
+	)
+)
+
+func init() {
+	// 注册自定义指标
+	prometheus.MustRegister(deptMemResourceQuota)
+	prometheus.MustRegister(deptUsedMemResource)
+	prometheus.MustRegister(deptPodCount)
+}
+
+func (h *ResourceHandler) ProbeDeptResource() {
+	deptResources := h.GetDeptResource()
+	for _, deptResource := range deptResources {
+		// set resource quota gauge
+		rhelAmdMemQuota := resource.MustParse(deptResource.Resources.NonXc.Limits.Memory)
+		kylinArmMemQuota := resource.MustParse(deptResource.Resources.XC.Kylin.Limits.Memory)
+		deptMemResourceQuota.With(prometheus.Labels{"department": deptResource.Name, "os": "rhel", "arch": "amd64"}).Set(float64(rhelAmdMemQuota.Value()))
+		deptMemResourceQuota.With(prometheus.Labels{"department": deptResource.Name, "os": "kylin", "arch": "arm64v8"}).Set(float64(kylinArmMemQuota.Value()))
+		// set used mem gauge
+		rhelAmdUsedMem := resource.MustParse(deptResource.Announced.NonXc.Limits.Memory)
+		kylinArmUsedMem := resource.MustParse(deptResource.Announced.XC.Kylin.Limits.Memory)
+		deptUsedMemResource.With(prometheus.Labels{"department": deptResource.Name, "os": "rhel", "arch": "amd64"}).Set(float64(rhelAmdUsedMem.Value()))
+		deptUsedMemResource.With(prometheus.Labels{"department": deptResource.Name, "os": "kylin", "arch": "arm64v8"}).Set(float64(kylinArmUsedMem.Value()))
+		// set pod count gauge
+		deptPodCount.With(prometheus.Labels{"department": deptResource.Name}).Set(float64(deptResource.Pods))
+	}
+}
 
 type ResourceHandler struct {
 	Handler *Handler
@@ -106,6 +156,11 @@ func (h *ResourceHandler) ComputeDeptResourceQuotaLimit(c *gin.Context) {
 }
 
 func (h *ResourceHandler) DeptResources(c *gin.Context) {
+	deptResource := h.GetDeptResource()
+	c.JSON(http.StatusOK, deptResource)
+}
+
+func (h *ResourceHandler) GetDeptResource() []model.DeptResource {
 	var deptResource []model.DeptResource
 	// 获取所有的pod的资源
 	pms, err := h.Handler.metricsClient.MetricsV1beta1().PodMetricses("").List(context.TODO(), metaV1.ListOptions{})
@@ -174,10 +229,11 @@ func (h *ResourceHandler) DeptResources(c *gin.Context) {
 				},
 			},
 			Used: used,
+			Pods: len(podList.Items),
 		})
 
 	}
-	c.JSON(http.StatusOK, deptResource)
+	return deptResource
 }
 
 // NodeResources return the node resources in cluster

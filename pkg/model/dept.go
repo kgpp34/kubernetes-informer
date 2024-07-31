@@ -46,4 +46,5 @@ type DeptResource struct {
 	Resources Resources    `json:"resources"`
 	Announced Announced    `json:"announced,omitempty"`
 	Used      UsedResource `json:"used,omitempty"`
+	Pods      int          `json:"pods,omitempty"`
 }

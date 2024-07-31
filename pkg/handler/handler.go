@@ -3,9 +3,11 @@ package handler
 import (
 	"context"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	k8s "k8s-admin-informer/pkg/kubernetes"
 	"k8s-admin-informer/pkg/kubernetes/informer"
+	"time"
+
+	log "github.com/sirupsen/logrus"
 	appsV1 "k8s.io/api/apps/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -14,7 +16,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	metricsv "k8s.io/metrics/pkg/client/clientset/versioned"
-	"time"
 )
 
 const (
@@ -37,8 +38,8 @@ type Handler struct {
 
 func NewHandler() (*Handler, error) {
 	// 创建k8s client
-	cs, dc, mc, err := k8s.NewKubernetesClientFromConfig("C:\\Users\\cffex\\.kube\\config")
-	//cs, dc, err := deploy.NewKubernetesClientInCluster()
+	// cs, dc, mc, err := k8s.NewKubernetesClientFromConfig("C:\\Users\\cffex\\.kube\\config")
+	cs, dc, mc, err := k8s.NewKubernetesClientInCluster()
 	if err != nil {
 		log.Errorf("创建clientSet失败，错误原因:%v", err)
 		return nil, err

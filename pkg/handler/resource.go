@@ -19,8 +19,17 @@ import (
 type NodeType string
 
 const (
-	XcNode    NodeType = "xc"
-	NonXcNode NodeType = "nonXc"
+	XcArmNodeType NodeType = "xcArm"
+	XcX86NodeType NodeType = "xcX86"
+	NonXcNodeType NodeType = "nonXc"
+)
+
+type NodePrefix string
+
+const (
+	RedHatX86NodePrefix NodePrefix = "b"
+	KylinX86NodePrefix  NodePrefix = "hk"
+	KylinArmNodePrefix  NodePrefix = "kk"
 )
 
 var (
@@ -59,14 +68,21 @@ func (h *ResourceHandler) ProbeDeptResource() {
 	for _, deptResource := range deptResources {
 		// set resource quota gauge
 		rhelAmdMemQuota := resource.MustParse(deptResource.Resources.NonXc.Limits.Memory)
-		kylinArmMemQuota := resource.MustParse(deptResource.Resources.XC.Kylin.Limits.Memory)
+		kylinArmMemQuota := resource.MustParse(deptResource.Resources.XC.Arm.Limits.Memory)
+		kylinX86MemQuota := resource.MustParse(deptResource.Resources.XC.X86.Limits.Memory)
+
 		deptMemResourceQuota.With(prometheus.Labels{"department": deptResource.Name, "os": "rhel", "arch": "amd64"}).Set(float64(rhelAmdMemQuota.Value()))
 		deptMemResourceQuota.With(prometheus.Labels{"department": deptResource.Name, "os": "kylin", "arch": "arm64v8"}).Set(float64(kylinArmMemQuota.Value()))
+		deptMemResourceQuota.With(prometheus.Labels{"department": deptResource.Name, "os": "kylin", "arch": "amd64"}).Set(float64(kylinX86MemQuota.Value()))
+
 		// set used mem gauge
 		rhelAmdUsedMem := resource.MustParse(deptResource.Announced.NonXc.Limits.Memory)
-		kylinArmUsedMem := resource.MustParse(deptResource.Announced.XC.Kylin.Limits.Memory)
+		kylinArmUsedMem := resource.MustParse(deptResource.Announced.XC.Arm.Limits.Memory)
+		kylinX86UsedMem := resource.MustParse(deptResource.Announced.XC.X86.Limits.Memory)
+
 		deptUsedMemResource.With(prometheus.Labels{"department": deptResource.Name, "os": "rhel", "arch": "amd64"}).Set(float64(rhelAmdUsedMem.Value()))
 		deptUsedMemResource.With(prometheus.Labels{"department": deptResource.Name, "os": "kylin", "arch": "arm64v8"}).Set(float64(kylinArmUsedMem.Value()))
+		deptUsedMemResource.With(prometheus.Labels{"department": deptResource.Name, "os": "kylin", "arch": "amd64"}).Set(float64(kylinX86UsedMem.Value()))
 		// set pod count gauge
 		deptPodCount.With(prometheus.Labels{"department": deptResource.Name}).Set(float64(deptResource.Pods))
 	}
@@ -150,7 +166,7 @@ func (h *ResourceHandler) ComputeDeptResourceQuotaLimit(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	// 如果所有检查都通过
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
@@ -182,7 +198,9 @@ func (h *ResourceHandler) GetDeptResource() []model.DeptResource {
 		}
 
 		nonXcQuantity := resource.MustParse("0Mi")
-		xcQuantity := resource.MustParse("0Mi")
+		kylinArmQuantity := resource.MustParse("0Mi")
+		kylinX86Quantity := resource.MustParse("0Mi")
+
 		for _, pod := range podList.Items {
 			metric, ok := m[pod.Name]
 			if !ok {
@@ -190,10 +208,13 @@ func (h *ResourceHandler) GetDeptResource() []model.DeptResource {
 			}
 
 			for _, c := range metric.Containers {
-				if strings.Contains(pod.Spec.NodeName, "b") {
+				if strings.Contains(pod.Spec.NodeName, string(RedHatX86NodePrefix)) {
 					nonXcQuantity.Add(c.Usage.Memory().DeepCopy())
-				} else if strings.Contains(pod.Spec.NodeName, "kk") {
-					xcQuantity.Add(c.Usage.Memory().DeepCopy())
+				} else if strings.Contains(pod.Spec.NodeName, string(KylinArmNodePrefix)) {
+					kylinArmQuantity.Add(c.Usage.Memory().DeepCopy())
+				} else if strings.Contains(pod.Spec.NodeName, string(KylinX86NodePrefix)) {
+					// kylin 海光x86架构
+					kylinX86Quantity.Add(c.Usage.Memory().DeepCopy())
 				}
 			}
 
@@ -202,7 +223,8 @@ func (h *ResourceHandler) GetDeptResource() []model.DeptResource {
 		// 计算该部门的信创和非信创资源
 		var used model.UsedResource
 		used.NonXc.Memory = nonXcQuantity.String()
-		used.XC.Kylin.Memory = xcQuantity.String()
+		used.XC.Arm.Memory = kylinArmQuantity.String()
+		used.XC.X86.Memory = kylinX86Quantity.String()
 
 		deptResource = append(deptResource, model.DeptResource{
 			Name: deptRscQuota.Spec.DeptName,
@@ -211,8 +233,10 @@ func (h *ResourceHandler) GetDeptResource() []model.DeptResource {
 					Limits: model.ResourceLimits{Memory: deptRscQuota.Spec.Resources.NonXcResources.Limits.Memory().String()},
 				},
 				XC: model.SubResource{
-					HG: struct{}{},
-					Kylin: model.ResourceQuotas{
+					X86: model.ResourceQuotas{
+						Limits: model.ResourceLimits{Memory: deptRscQuota.Spec.Resources.XcResources.HgResource.Limits.Memory().String()},
+					},
+					Arm: model.ResourceQuotas{
 						Limits: model.ResourceLimits{Memory: deptRscQuota.Spec.Resources.XcResources.ArmResource.Limits.Memory().String()},
 					},
 				},
@@ -222,8 +246,10 @@ func (h *ResourceHandler) GetDeptResource() []model.DeptResource {
 					Limits: model.ResourceLimits{Memory: deptRscQuota.Status.UsedResources.UsedNonXcResource.Limits.Memory().String()},
 				},
 				XC: model.SubResource{
-					HG: struct{}{},
-					Kylin: model.ResourceQuotas{
+					X86: model.ResourceQuotas{
+						Limits: model.ResourceLimits{Memory: deptRscQuota.Status.UsedResources.UsedXcResource.HgResource.Limits.Memory().String()},
+					},
+					Arm: model.ResourceQuotas{
 						Limits: model.ResourceLimits{Memory: deptRscQuota.Status.UsedResources.UsedXcResource.ArmResource.Limits.Memory().String()},
 					},
 				},
@@ -254,12 +280,12 @@ func (h *ResourceHandler) NodeResources(c *gin.Context) {
 
 	for _, node := range nodes {
 		var nodeType NodeType
-		if strings.Contains(node.Name, "b") {
-			nodeType = NonXcNode
-		} else if strings.Contains(node.Name, "kk") {
-			nodeType = XcNode
-		} else {
-			continue
+		if strings.Contains(node.Name, string(RedHatX86NodePrefix)) {
+			nodeType = NonXcNodeType
+		} else if strings.Contains(node.Name, string(KylinArmNodePrefix)) {
+			nodeType = XcArmNodeType
+		} else if strings.Contains(node.Name, string(KylinX86NodePrefix)) {
+			nodeType = XcX86NodeType
 		}
 
 		nodeMetrics, _ := m[node.Name]
@@ -285,13 +311,17 @@ func (h *ResourceHandler) ClusterResources(c *gin.Context) {
 	pods := h.Handler.Informers[PodInformer].(*informer.PodInformer).List()
 
 	nonXcQuantity := resource.MustParse("0Mi")
-	xcQuantity := resource.MustParse("0Mi")
+	kylinArmQuantity := resource.MustParse("0Mi")
+	kylinX86Quantity := resource.MustParse("0Mi")
+
 	for _, pod := range pods {
 		for _, c := range pod.Spec.Containers {
-			if strings.Contains(pod.Spec.NodeName, "b") {
+			if strings.Contains(pod.Spec.NodeName, string(RedHatX86NodePrefix)) {
 				nonXcQuantity.Add(c.Resources.Limits.Memory().DeepCopy())
-			} else if strings.Contains(pod.Spec.NodeName, "kk") {
-				xcQuantity.Add(c.Resources.Limits.Memory().DeepCopy())
+			} else if strings.Contains(pod.Spec.NodeName, string(KylinArmNodePrefix)) {
+				kylinArmQuantity.Add(c.Resources.Limits.Memory().DeepCopy())
+			} else if strings.Contains(pod.Spec.NodeName, string(KylinX86NodePrefix)) {
+				kylinX86Quantity.Add(c.Resources.Limits.Memory().DeepCopy())
 			}
 		}
 	}
@@ -301,9 +331,11 @@ func (h *ResourceHandler) ClusterResources(c *gin.Context) {
 			"memory": nonXcQuantity.String(),
 		},
 		XcLimitsResources: model.XcLimitsResources{
-			Hg: struct{}{},
+			Hg: map[string]string{
+				"memory": kylinX86Quantity.String(),
+			},
 			Kylin: map[string]string{
-				"memory": xcQuantity.String(),
+				"memory": kylinArmQuantity.String(),
 			},
 		},
 	}
@@ -331,7 +363,9 @@ func (h *ResourceHandler) EnvResources(c *gin.Context) {
 		if exists {
 			if _, groupExists := envPods[namespaceGroup]; !groupExists {
 				nonXcMemory := resource.MustParse("0Mi")
-				kylinMemory := resource.MustParse("0Mi")
+				kylinArmMemory := resource.MustParse("0Mi")
+				kylinX86Memory := resource.MustParse("0Mi")
+
 				envPods[namespaceGroup] = model.EnvResource{
 					Dept:    dept,
 					EnvName: namespaceGroup,
@@ -343,20 +377,26 @@ func (h *ResourceHandler) EnvResources(c *gin.Context) {
 						},
 					},
 					XcResource: model.XcResource{
-						Kylin: model.CommonResource{
+						Arm: model.CommonResource{
 							Limits: model.ComputationResources{
-								Memory: &kylinMemory,
+								Memory: &kylinArmMemory,
 							},
 						},
-						Hg: model.CommonResource{},
+						X86: model.CommonResource{
+							Limits: model.ComputationResources{
+								Memory: &kylinX86Memory,
+							},
+						},
 					},
 				}
 			}
 			for _, c := range pod.Spec.Containers {
-				if strings.Contains(pod.Spec.NodeName, "b") {
+				if strings.Contains(pod.Spec.NodeName, string(RedHatX86NodePrefix)) {
 					envPods[namespaceGroup].NonXcResource.Limits.Memory.Add(c.Resources.Limits.Memory().DeepCopy())
-				} else if strings.Contains(pod.Spec.NodeName, "kk") {
-					envPods[namespaceGroup].XcResource.Kylin.Limits.Memory.Add(c.Resources.Limits.Memory().DeepCopy())
+				} else if strings.Contains(pod.Spec.NodeName, string(KylinArmNodePrefix)) {
+					envPods[namespaceGroup].XcResource.Arm.Limits.Memory.Add(c.Resources.Limits.Memory().DeepCopy())
+				} else if strings.Contains(pod.Spec.NodeName, string(KylinX86NodePrefix)) {
+					envPods[namespaceGroup].XcResource.X86.Limits.Memory.Add(c.Resources.Limits.Memory().DeepCopy())
 				}
 			}
 		}

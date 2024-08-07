@@ -118,35 +118,52 @@ func (h *ResourceHandler) ComputeDeptResourceQuotaLimit(c *gin.Context) {
 	}
 
 	// 比较 Spec.XcResources.Limits.Memory 与 Status.XcMemory
-	kylinMemory := deptResourceQuota.Status.UsedResources.UsedXcResource.KylinResource.Limits.Memory()
-	if cmpResult := deptResourceQuota.Spec.Resources.XcResources.KylinResource.Limits.Memory().Cmp(kylinMemory.DeepCopy()); cmpResult < 0 {
+	kylinArmMemory := deptResourceQuota.Status.UsedResources.UsedXcResource.ArmResource.Limits.Memory()
+	if cmpResult := deptResourceQuota.Spec.Resources.XcResources.ArmResource.Limits.Memory().Cmp(kylinArmMemory.DeepCopy()); cmpResult < 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "reason": "XC memory usage exceeds limit"})
 		return
 	}
 
 	requestNonXcMem := resource.MustParse(req.RequestNonXcMemory)
-	requestXcMem := resource.MustParse(req.RequestXcMemory)
+	requestKylinArmMem := resource.MustParse(req.RequestKylinArmMemory)
+	requestKylinX86Mem := resource.MustParse(req.RequestKylinHgMemory)
 
 	// 将请求中的 memory 和 xcMemory 分别加到 Status 中对应的字段
 	newNonXcMemory := deptResourceQuota.Status.UsedResources.UsedNonXcResource.Limits.Memory().DeepCopy()
 	newNonXcMemory.Add(requestNonXcMem)
 
-	newXcMemory := deptResourceQuota.Status.UsedResources.UsedXcResource.KylinResource.Limits.Memory().DeepCopy()
-	newXcMemory.Add(requestXcMem)
+	newKylinArmMemory := deptResourceQuota.Status.UsedResources.UsedXcResource.ArmResource.Limits.Memory().DeepCopy()
+	newKylinArmMemory.Add(requestKylinArmMem)
+
+	newKylinX86Memory := deptResourceQuota.Status.UsedResources.UsedXcResource.HgResource.Limits.Memory().DeepCopy()
+	newKylinX86Memory.Add(requestKylinX86Mem)
 
 	// 比较 newNonXcMemory 与 Spec.Resources.Limits.Memory
-	if !deptResourceQuota.Spec.Resources.NonXcResources.Limits.Memory().IsZero() || !newNonXcMemory.IsZero() {
-		if cmpResult := deptResourceQuota.Spec.Resources.NonXcResources.Limits.Memory().Cmp(newNonXcMemory); cmpResult <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "reason": "After adding request, non-XC memory usage exceeds limit"})
-			return
+	if !requestNonXcMem.IsZero() {
+		if !deptResourceQuota.Spec.Resources.NonXcResources.Limits.Memory().IsZero() || !newNonXcMemory.IsZero() {
+			if cmpResult := deptResourceQuota.Spec.Resources.NonXcResources.Limits.Memory().Cmp(newNonXcMemory); cmpResult <= 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "reason": "After adding request, non-XC memory usage exceeds limit"})
+				return
+			}
 		}
 	}
 
-	// 比较 newXcMemory 与 Spec.XcResources.Limits.Memory
-	if !deptResourceQuota.Spec.Resources.XcResources.KylinResource.Limits.Memory().IsZero() || !newXcMemory.IsZero() {
-		if cmpResult := deptResourceQuota.Spec.Resources.XcResources.KylinResource.Limits.Memory().Cmp(newXcMemory); cmpResult <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "reason": "After adding request, XC memory usage exceeds limit"})
-			return
+	if !requestKylinArmMem.IsZero() {
+		// 比较 newXcMemory 与 Spec.XcResources.Limits.Memory
+		if !deptResourceQuota.Spec.Resources.XcResources.ArmResource.Limits.Memory().IsZero() || !newKylinArmMemory.IsZero() {
+			if cmpResult := deptResourceQuota.Spec.Resources.XcResources.ArmResource.Limits.Memory().Cmp(newKylinArmMemory); cmpResult <= 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "reason": "After adding request, kylin arm memory usage exceeds limit"})
+				return
+			}
+		}
+	}
+
+	if !requestKylinX86Mem.IsZero() {
+		if !deptResourceQuota.Spec.Resources.XcResources.HgResource.Limits.Memory().IsZero() || !newKylinArmMemory.IsZero() {
+			if cmpResult := deptResourceQuota.Spec.Resources.XcResources.HgResource.Limits.Memory().Cmp(newKylinX86Memory); cmpResult <= 0 {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "reason": "After adding request, kylin hg x86 memory usage exceeds limit"})
+				return
+			}
 		}
 	}
 
@@ -220,7 +237,7 @@ func (h *ResourceHandler) GetDeptResource() []model.DeptResource {
 						Limits: model.ResourceLimits{Memory: deptRscQuota.Spec.Resources.XcResources.HgResource.Limits.Memory().String()},
 					},
 					Arm: model.ResourceQuotas{
-						Limits: model.ResourceLimits{Memory: deptRscQuota.Spec.Resources.XcResources.KylinResource.Limits.Memory().String()},
+						Limits: model.ResourceLimits{Memory: deptRscQuota.Spec.Resources.XcResources.ArmResource.Limits.Memory().String()},
 					},
 				},
 			},
@@ -233,7 +250,7 @@ func (h *ResourceHandler) GetDeptResource() []model.DeptResource {
 						Limits: model.ResourceLimits{Memory: deptRscQuota.Status.UsedResources.UsedXcResource.HgResource.Limits.Memory().String()},
 					},
 					Arm: model.ResourceQuotas{
-						Limits: model.ResourceLimits{Memory: deptRscQuota.Status.UsedResources.UsedXcResource.KylinResource.Limits.Memory().String()},
+						Limits: model.ResourceLimits{Memory: deptRscQuota.Status.UsedResources.UsedXcResource.ArmResource.Limits.Memory().String()},
 					},
 				},
 			},

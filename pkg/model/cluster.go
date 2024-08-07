@@ -6,6 +6,6 @@ type ClusterResource struct {
 }
 
 type XcLimitsResources struct {
-	Hg    struct{}          `json:"hg"`
+	Hg    map[string]string `json:"hg,omitempty"`
 	Kylin map[string]string `json:"kylin,omitempty"`
 }

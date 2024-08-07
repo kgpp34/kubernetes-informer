@@ -11,8 +11,8 @@ type NonXcResource struct {
 }
 
 type XcResource struct {
-	Kylin CommonResource `json:"kylin,omitempty"`
-	Hg    CommonResource `json:"hg,omitempty"`
+	Arm CommonResource `json:"arm,omitempty"`
+	X86 CommonResource `json:"x86,omitempty"`
 }
 
 type ComputationResources struct {

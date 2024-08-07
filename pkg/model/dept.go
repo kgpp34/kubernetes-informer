@@ -15,8 +15,8 @@ type ResourceQuotas struct {
 }
 
 type SubResource struct {
-	HG    struct{}       `json:"hg,omitempty"`
-	Kylin ResourceQuotas `json:"kylin,omitempty"`
+	X86 ResourceQuotas `json:"x86,omitempty"`
+	Arm ResourceQuotas `json:"arm,omitempty"`
 }
 
 type Resources struct {
@@ -34,9 +34,12 @@ type UsedResource struct {
 		Memory string `json:"memory,omitempty"`
 	} `json:"nonXc,omitempty"`
 	XC struct {
-		Kylin struct {
+		Arm struct {
 			Memory string `json:"memory,omitempty"`
-		} `json:"kylin,omitempty"`
+		} `json:"arm,omitempty"`
+		X86 struct {
+			Memory string `json:"memory,omitempty"`
+		} `json:"x86,omitempty"`
 	} `json:"xc,omitempty"`
 }
 

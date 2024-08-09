@@ -331,10 +331,10 @@ func (h *ResourceHandler) ClusterResources(c *gin.Context) {
 			"memory": nonXcQuantity.String(),
 		},
 		XcLimitsResources: model.XcLimitsResources{
-			Hg: map[string]string{
+			X86: map[string]string{
 				"memory": kylinX86Quantity.String(),
 			},
-			Kylin: map[string]string{
+			Arm: map[string]string{
 				"memory": kylinArmQuantity.String(),
 			},
 		},

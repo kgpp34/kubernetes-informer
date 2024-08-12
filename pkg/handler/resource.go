@@ -159,7 +159,7 @@ func (h *ResourceHandler) ComputeDeptResourceQuotaLimit(c *gin.Context) {
 	}
 
 	if !requestKylinX86Mem.IsZero() {
-		if !deptResourceQuota.Spec.Resources.XcResources.HgResource.Limits.Memory().IsZero() || !newKylinArmMemory.IsZero() {
+		if !deptResourceQuota.Spec.Resources.XcResources.HgResource.Limits.Memory().IsZero() || !newKylinX86Memory.IsZero() {
 			if cmpResult := deptResourceQuota.Spec.Resources.XcResources.HgResource.Limits.Memory().Cmp(newKylinX86Memory); cmpResult <= 0 {
 				c.JSON(http.StatusBadRequest, gin.H{"success": false, "reason": "After adding request, kylin hg x86 memory usage exceeds limit"})
 				return

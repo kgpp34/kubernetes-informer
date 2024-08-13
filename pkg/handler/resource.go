@@ -111,7 +111,7 @@ func (h *ResourceHandler) ComputeDeptResourceQuotaLimit(c *gin.Context) {
 		return
 	}
 
-	// 比较 Spec.Resources.Limits.Memory 与 Status.NonXcMemory
+	/*// 比较 Spec.Resources.Limits.Memory 与 Status.NonXcMemory
 	if cmpResult := deptResourceQuota.Spec.Resources.NonXcResources.Limits.Memory().Cmp(deptResourceQuota.Status.UsedResources.UsedNonXcResource.Limits.Memory().DeepCopy()); cmpResult < 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "reason": "Non-XC memory usage exceeds limit"})
 		return
@@ -122,7 +122,7 @@ func (h *ResourceHandler) ComputeDeptResourceQuotaLimit(c *gin.Context) {
 	if cmpResult := deptResourceQuota.Spec.Resources.XcResources.ArmResource.Limits.Memory().Cmp(kylinArmMemory.DeepCopy()); cmpResult < 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "reason": "XC memory usage exceeds limit"})
 		return
-	}
+	}*/
 
 	requestNonXcMem := resource.MustParse(req.RequestNonXcMemory)
 	requestKylinArmMem := resource.MustParse(req.RequestKylinArmMemory)

@@ -60,20 +60,18 @@ func (a *App) Run() error {
 		}
 	}()
 
+    // 同步启动 informer，完成后注册事件并进行聚合预热
+    if err := a.baseHandler.Start(); err != nil {
+        log.Errorf("启动informer出现异常：%v", err)
+        return err
+    }
+    a.rscHandler.EnableEventDrivenInvalidation()
+    a.rscHandler.SeedNodeAggFromInformer()
+
     // 注册路由
     a.registerRoute()
 
-    go func() {
-        // 启动各个informer
-        if err := a.baseHandler.Start(); err != nil {
-            log.Errorf("启动informer出现异常：%v", err)
-            return
-        }
-        a.rscHandler.EnableEventDrivenInvalidation()
-    }()
-
-	// 运行server
-	err := a.engine.Run(":8080")
+    err := a.engine.Run(":8080")
 	if err != nil {
 		return err
 	}

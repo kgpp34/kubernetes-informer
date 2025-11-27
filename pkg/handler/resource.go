@@ -441,19 +441,39 @@ func (h *ResourceHandler) NodeResources(c *gin.Context) {
         }
     }
 
-    if !refresh && maxAge == nil && !h.nodeResourceCacheTime.IsZero() && time.Since(h.nodeResourceCacheTime) < h.cacheTTL {
+    if !refresh && maxAge == nil && !h.nodeResourceCacheTime.IsZero() && time.Since(h.nodeResourceCacheTime) < h.cacheTTL && len(h.nodeResourceCache.Items) > 0 {
         c.Header("X-Cache", "HIT")
         c.Header("X-Generated-At", h.nodeResourceCacheTime.Format(time.RFC3339))
         c.JSON(http.StatusOK, h.nodeResourceCache)
         return
     }
 
-    data := h.buildNodeListFromAgg()
-    h.nodeResourceCache = data
-    h.nodeResourceCacheTime = time.Now()
+    h.recomputeMu.Lock()
+    aggEmpty := len(h.nodeAgg) == 0
+    h.recomputeMu.Unlock()
+
+    var data model.NodeList
+    if aggEmpty {
+        data = h.RecomputeNodeResources()
+    } else {
+        data = h.buildNodeListFromAgg()
+        h.nodeResourceCache = data
+        h.nodeResourceCacheTime = time.Now()
+    }
     c.Header("X-Cache", "MISS")
     c.Header("X-Generated-At", h.nodeResourceCacheTime.Format(time.RFC3339))
     c.JSON(http.StatusOK, data)
+}
+
+func (h *ResourceHandler) SeedNodeAggFromInformer() {
+    nodes := h.Handler.Informers[NodeInformer].(*informer.NodeInformer).List()
+    for _, node := range nodes {
+        h.onNodeAdd(node)
+    }
+    h.recomputeMu.Lock()
+    h.nodeResourceCache = h.buildNodeListFromAgg()
+    h.nodeResourceCacheTime = time.Now()
+    h.recomputeMu.Unlock()
 }
 
 // RecomputeNodeResources 强制重算节点资源并更新缓存

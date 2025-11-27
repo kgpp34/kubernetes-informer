@@ -1,11 +1,13 @@
 package app
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
+
 	"k8s-admin-informer/pkg/handler"
-	"time"
 )
 
 type App struct {
@@ -53,11 +55,13 @@ func (a *App) Run() error {
 		for {
 			select {
 			case <-ticker.C:
-				// 调用 probeDeptResource 函数更新指标数据
 				a.rscHandler.ProbeDeptResource()
 			}
 		}
 	}()
+
+    // 事件驱动的缓存失效与重算
+    a.rscHandler.EnableEventDrivenInvalidation()
 
 	// 注册路由
 	a.registerRoute()

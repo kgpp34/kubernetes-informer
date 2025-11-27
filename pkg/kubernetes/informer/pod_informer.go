@@ -2,6 +2,8 @@ package informer
 
 import (
 	"context"
+	"time"
+
 	log "github.com/sirupsen/logrus"
 	coreV1 "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -10,7 +12,6 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"time"
 )
 
 type PodInformer struct {
@@ -102,6 +103,11 @@ func (podInformer *PodInformer) List() []*coreV1.Pod {
 		res = append(res, pod)
 	}
 	return res
+}
+
+func (podInformer *PodInformer) AddEventHandler(handler cache.ResourceEventHandler) error {
+	_, err := podInformer.informer.AddEventHandler(handler)
+	return err
 }
 
 func (podInformer *PodInformer) ListBySelector(ls labels.Set) []coreV1.Pod {

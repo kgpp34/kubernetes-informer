@@ -2,13 +2,14 @@ package informer
 
 import (
 	"context"
+	"time"
+
 	coreV1 "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"time"
 )
 
 type NodeInformer struct {
@@ -49,4 +50,9 @@ func (nodeInformer *NodeInformer) Start(stopCh <-chan struct{}) {
 
 func (nodeInformer *NodeInformer) HasSynced() bool {
 	return nodeInformer.informer.HasSynced()
+}
+
+func (nodeInformer *NodeInformer) AddEventHandler(handler cache.ResourceEventHandler) error {
+	_, err := nodeInformer.informer.AddEventHandler(handler)
+	return err
 }

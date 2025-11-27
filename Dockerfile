@@ -1,5 +1,6 @@
 # 第一阶段：构建
-FROM golang:1.20.5 AS builder
+ARG GO_IMAGE=golang:1.20.5
+FROM ${GO_IMAGE} AS builder
 
 # 设置工作目录
 WORKDIR /app

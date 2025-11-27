@@ -60,18 +60,17 @@ func (a *App) Run() error {
 		}
 	}()
 
-    // 事件驱动的缓存失效与重算
-    a.rscHandler.EnableEventDrivenInvalidation()
+    // 注册路由
+    a.registerRoute()
 
-	// 注册路由
-	a.registerRoute()
-
-	go func() {
-		// 启动各个informer
-		if err := a.baseHandler.Start(); err != nil {
-			log.Errorf("启动informer出现异常：%v", err)
-		}
-	}()
+    go func() {
+        // 启动各个informer
+        if err := a.baseHandler.Start(); err != nil {
+            log.Errorf("启动informer出现异常：%v", err)
+            return
+        }
+        a.rscHandler.EnableEventDrivenInvalidation()
+    }()
 
 	// 运行server
 	err := a.engine.Run(":8080")

@@ -3,8 +3,6 @@ package handler
 import (
 	"context"
 	"fmt"
-	k8s "k8s-admin-informer/pkg/kubernetes"
-	"k8s-admin-informer/pkg/kubernetes/informer"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -16,6 +14,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	metricsv "k8s.io/metrics/pkg/client/clientset/versioned"
+
+	k8s "k8s-admin-informer/pkg/kubernetes"
+	"k8s-admin-informer/pkg/kubernetes/informer"
 )
 
 const (
@@ -34,6 +35,7 @@ type Handler struct {
 	metricsClient *metricsv.Clientset
 	Informers     map[string]informer.Informer
 	D             cache.SharedIndexInformer
+	stopCh        chan struct{}
 }
 
 func NewHandler() (*Handler, error) {
@@ -95,7 +97,7 @@ func (h *Handler) Start() error {
 
 	// 启动informer
 	stopCh := make(chan struct{})
-	defer close(stopCh)
+	h.stopCh = stopCh
 
 	for name, inf := range h.Informers {
 		go func(name string, inf informer.Informer) {
